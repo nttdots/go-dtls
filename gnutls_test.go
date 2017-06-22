@@ -77,8 +77,13 @@ func TestNewDTLSServerContext(t *testing.T) {
 				go func() {
 					log.Infof("TestNewDTLSServerContext -- connected. client: %s", conn.RemoteAddr().String())
 
-					if conn.(dtls_gnutls.DTLSServerConn).GetClientCN() != "client.sample.example.com" {
-						t.Errorf("CN read error, %+v", conn)
+					dtlsConn, ok := conn.(dtls_gnutls.DTLSServerConn)
+					if !ok {
+						t.Errorf("connection type error, %T", conn)
+					}
+
+					if ok && dtlsConn.GetClientCN() != "client.sample.example.com" {
+						t.Errorf("CN read error, cn:%s", dtlsConn.GetClientCN())
 					}
 					data := make([]byte, 1500)
 					n, err := conn.Read(data)

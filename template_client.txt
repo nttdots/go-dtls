@@ -3,7 +3,7 @@
 organization = "test client"
 state = "Tokyo"
 country = JP
-cn = "client=x,example.com"
+cn = "client.sample.example.com"
 expiration_days = 365
 
 # X.509 v3 extensions
