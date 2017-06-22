@@ -9,7 +9,7 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/nttdots/dots-go-implementation/dtls-gnutls"
+	dtls_gnutls "github.com/nttdots/go-dtls"
 )
 
 func TestNewDTLSClientContext(t *testing.T) {
@@ -18,16 +18,18 @@ func TestNewDTLSClientContext(t *testing.T) {
 	ctx, err := dtls_gnutls.NewDTLSClientContext("ca-cert.pem", "client-cert.pem", "client-key.pem")
 	if err != nil {
 		t.Error(err)
+		return
 	}
-	log.Infof("ctx: %v", ctx)
+	log.Infof("ctx: %+v", ctx)
+	defer ctx.Close()
 
 	session, err := ctx.Connect("localhost:11112")
 	if err != nil {
 		t.Error(err)
+		return
 	}
 
 	defer session.Close()
-	defer ctx.Close()
 
 	send_string := "client abcde"
 	expected := len(send_string)
@@ -56,7 +58,7 @@ func TestNewDTLSClientContext(t *testing.T) {
 func TestNewDTLSServerContext(t *testing.T) {
 	log.Print("-- TestNewDTLSServerContext")
 
-	ctx, err := dtls_gnutls.NewDTLSServerContext("../certs/ca-cert.pem", "../certs/crl.pem", "../certs/server-cert.pem", "../certs/server-key.pem")
+	ctx, err := dtls_gnutls.NewDTLSServerContext("ca-cert.pem", "crl.pem", "server-cert.pem", "server-key.pem")
 	if err != nil {
 		t.Error(err)
 	}
@@ -106,6 +108,7 @@ func TestNewDTLSServerContext(t *testing.T) {
 	var wg sync.WaitGroup
 	for i := 0; i < 20; i++ {
 		wg.Add(1)
+
 		go func(wg_ref *sync.WaitGroup, counter int) {
 			var clientctx *dtls_gnutls.DTLSCTX
 			var clientSession *dtls_gnutls.DTLS_CLIENT_SESSION
@@ -113,15 +116,17 @@ func TestNewDTLSServerContext(t *testing.T) {
 			var buffer []byte
 			var err error
 
-			clientctx, err = dtls_gnutls.NewDTLSClientContext("../certs/ca-cert.pem", "../certs/client-cert.pem", "../certs/client-key.pem")
+			clientctx, err = dtls_gnutls.NewDTLSClientContext("ca-cert.pem", "client-cert.pem", "client-key.pem")
 			if err != nil {
 				goto Error
 			}
+			defer clientctx.Close()
 
 			clientSession, err = clientctx.Connect("localhost:5557")
 			if err != nil {
 				goto Error
 			}
+			defer clientSession.Close()
 			clientSession.Write([]byte("test-data"))
 
 			buffer = make([]byte, 1500)
@@ -135,8 +140,6 @@ func TestNewDTLSServerContext(t *testing.T) {
 			log.Infof("client %d finish.", counter)
 			return
 		Error:
-			clientSession.Close()
-			clientctx.Close()
 			wg_ref.Done()
 			t.Error(err)
 		}(&wg, i)

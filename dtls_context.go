@@ -123,7 +123,10 @@ func (ctx *DTLSCTX) Listen(server string, establishConnChan chan<- net.Conn, err
 */
 func (ctx *DTLSCTX) Connect(server string) (session *DTLS_CLIENT_SESSION, err error) {
 
-	log.Infof("DTLSCTX::Connect -- connect: %s", server)
+	log.WithFields(log.Fields{
+		"target": server,
+	}).Debug("DTLSCTX::Connect")
+
 	remote, _ := net.ResolveUDPAddr("udp", server)
 	conn, err := net.DialUDP("udp", nil, remote)
 	if err != nil {
