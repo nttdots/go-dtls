@@ -14,7 +14,7 @@ import (
 	"time"
 	"unsafe"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 type DTLS_SERVER_CONTEXT struct {

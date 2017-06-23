@@ -8,7 +8,7 @@ import (
 
 	"errors"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	dtls_gnutls "github.com/nttdots/go-dtls"
 )
 

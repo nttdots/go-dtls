@@ -16,7 +16,7 @@ import (
 	"unicode/utf8"
 	"unsafe"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 type Error struct {

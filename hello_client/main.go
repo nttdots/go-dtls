@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
-	log "github.com/Sirupsen/logrus"
-	dtls "github.com/nttdots/dots-go-implementation/dtls-gnutls"
+	log "github.com/sirupsen/logrus"
+	dtls "github.com/nttdots/go-dtls"
 )
 
 // dtls client

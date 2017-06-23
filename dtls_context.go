@@ -30,7 +30,7 @@ import (
 	"net"
 	"os"
 	"unsafe"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	sockaddrnet "github.com/jbenet/go-sockaddr/net"
 )
 

@@ -5,8 +5,8 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	log "github.com/Sirupsen/logrus"
-	dtls "github.com/nttdots/dots-go-implementation/dtls-gnutls"
+	log "github.com/sirupsen/logrus"
+	dtls "github.com/nttdots/go-dtls"
 )
 
 func main() {
