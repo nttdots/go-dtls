@@ -24,5 +24,5 @@ _testmain.go
 *.prof
 *.sock
 
-dtls-gnutls/hello_client/hello_client
-dtls-gnutls/hello_server/hello_server
+hello_client/hello_client
+hello_server/hello_server
