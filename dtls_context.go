@@ -171,7 +171,7 @@ func (d *DTLSCTX) initClientSession(conn *net.UDPConn, serverHostName, clientHos
 	var ret C.int
 	priorities := C.CString("NORMAL:-VERS-TLS-ALL:+VERS-DTLS1.2")
 	defer C.free(unsafe.Pointer(priorities))
-	clientSession = (*DTLS_CLIENT_SESSION)(C.malloc(C.size_t(unsafe.Sizeof(DTLS_CLIENT_SESSION{}))))
+	clientSession = &DTLS_CLIENT_SESSION{}
 	clientSession.conn = conn
 
 	/* Initialize TLS session */
@@ -206,7 +206,6 @@ func (d *DTLSCTX) initClientSession(conn *net.UDPConn, serverHostName, clientHos
 
 	return
 Error:
-	C.free(unsafe.Pointer(clientSession))
 	clientSession = nil
 	return
 }
@@ -222,7 +221,7 @@ func (d *DTLSCTX) initListenerContext(conn *net.UDPConn, establishConnChan chan<
 	log.WithField("listenStopChan", fmt.Sprintf("%p", listenStopChan)).Debug("create channel")
 	clientMap := make(map[string]*sessionContainer)
 
-	context = (*DTLS_SERVER_CONTEXT)(C.malloc(C.size_t(unsafe.Sizeof(DTLS_SERVER_CONTEXT{}))))
+	context = &DTLS_SERVER_CONTEXT{}
 	context.ctx = d
 	context.conn = conn
 	context.cookieKey = (*C.gnutls_datum_t)(C.malloc(C.size_t(C.sizeof_gnutls_datum_t)))
@@ -263,7 +262,6 @@ Error2:
 	C.gnutls_dh_params_deinit(context.dhParam)
 Error:
 	C.free(unsafe.Pointer(context.cookieKey))
-	C.free(unsafe.Pointer(context))
 	return nil, err
 }
 

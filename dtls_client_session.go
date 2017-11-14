@@ -133,7 +133,6 @@ func (d *DTLS_CLIENT_SESSION) Close() (err error) {
 	if err != nil {
 		log.WithError(err).Error("DTLS connection close error.")
 	}
-	C.free(unsafe.Pointer(d))
 
 	return nil
 }

@@ -17,6 +17,7 @@ import (
 	_ "encoding/hex"
 	"errors"
 	"net"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -57,10 +58,54 @@ type receiveData struct {
 gnutls コールバック関数のためのセッション固有データ
  */
 type privDataSt struct {
+	key     uintptr
 	ctx     *DTLS_SERVER_CONTEXT
 	client  *net.UDPAddr
 	session C.gnutls_session_t
 	dataCh  <-chan []byte
+}
+
+var privDataMap = make(map[uintptr] *privDataSt)
+var privDataMutex = sync.RWMutex{}
+var privDataLastKey uintptr
+
+func newPrivData() *privDataSt {
+	privDataMutex.Lock()
+	defer privDataMutex.Unlock()
+
+	p := &privDataSt{}
+	k := privDataLastKey + 1
+
+	for {
+		if _, ok := privDataMap[k]; ok {
+			k++
+		} else {
+			break
+		}
+	}
+
+	p.key = k
+	privDataLastKey = k
+	privDataMap[k] = p
+	return p
+}
+
+func getPrivData(k uintptr) (p *privDataSt) {
+	privDataMutex.RLock()
+	defer privDataMutex.RUnlock()
+
+	p, ok := privDataMap[k]
+	if !ok {
+		log.WithField("k", k).Error("privDataSt does not exist for")
+	}
+	return
+}
+
+func deletePrivData(k uintptr) {
+	privDataMutex.Lock()
+	defer privDataMutex.Unlock()
+
+	delete(privDataMap, k)
 }
 
 func (s sessionContainer) Read(b []byte) (n int, err error) {
@@ -154,7 +199,7 @@ func (listener *DTLS_SERVER_CONTEXT) closeSession(key string) {
 			C.gnutls_bye(session.session, C.GNUTLS_SHUT_WR)
 		}
 		C.gnutls_deinit(session.session)
-		C.free(unsafe.Pointer(session.privData))
+		deletePrivData(session.privData.key)
 		close(session.socketReceiveCh)
 	}
 }
@@ -185,12 +230,12 @@ func (listener *DTLS_SERVER_CONTEXT) sendCookie(from *net.UDPAddr, pre_state *C.
 
 	from_addr, length := toSocketaddr(from)
 	// allocate from C heap / avoid GC
-	s := (*privDataSt)(C.malloc(C.size_t(unsafe.Sizeof(privDataSt{}))))
+	s := newPrivData()
 	s.ctx = listener
 	s.session = nil
 	s.client = from
 	s.dataCh = nil
-	defer C.free(unsafe.Pointer(s))
+	defer deletePrivData(s.key)
 
 	log.Infof("DTLS_SERVER_CONTEXT::sendCookie -- client: %s", from.String())
 
@@ -198,7 +243,7 @@ func (listener *DTLS_SERVER_CONTEXT) sendCookie(from *net.UDPAddr, pre_state *C.
 		listener.cookieKey,
 		unsafe.Pointer(from_addr), C.size_t(length),
 		pre_state,
-		C.gnutls_transport_ptr_t(s),
+		C.gnutls_transport_ptr_t(s.key),
 		C.gnutls_push_func(C.push_func))
 
 	err = checkGnutlsError(ret, "gnutls_dtls_cookie_send")
@@ -210,7 +255,7 @@ func (listener *DTLS_SERVER_CONTEXT) sendCookie(from *net.UDPAddr, pre_state *C.
  */
 func (listener *DTLS_SERVER_CONTEXT) initSession(from *net.UDPAddr, pre_state *C.gnutls_dtls_prestate_st) (container *sessionContainer, err error) {
 
-	container = (*sessionContainer)(C.malloc(C.size_t(unsafe.Sizeof(sessionContainer{}))))
+	container = &sessionContainer{}
 	var dataCh chan []byte
 	var privateData *privDataSt
 
@@ -239,13 +284,13 @@ func (listener *DTLS_SERVER_CONTEXT) initSession(from *net.UDPAddr, pre_state *C
 
 	dataCh = make(chan []byte, 6)
 	// allocate from C heap / avoid GC
-	privateData = (*privDataSt)(C.malloc(C.size_t(unsafe.Sizeof(privDataSt{}))))
+	privateData = newPrivData()
 	privateData.ctx = listener
 	privateData.session = container.session
 	privateData.client = from
 	privateData.dataCh = dataCh
 
-	C.gnutls_transport_set_ptr(container.session, (C.gnutls_transport_ptr_t)(unsafe.Pointer(privateData)))
+	C.gnutls_transport_set_ptr(container.session, (C.gnutls_transport_ptr_t)(privateData.key))
 	C.gnutls_transport_set_push_function(container.session, C.gnutls_push_func(C.push_func))
 	C.gnutls_transport_set_pull_function(container.session, C.gnutls_pull_func(C.pull_func))
 	C.gnutls_transport_set_pull_timeout_function(container.session, C.gnutls_pull_timeout_func(C.pull_timeout_func))
@@ -263,7 +308,6 @@ func (listener *DTLS_SERVER_CONTEXT) initSession(from *net.UDPAddr, pre_state *C
 
 ErrorOnSessionInitialized:
 	C.gnutls_deinit(container.session)
-	C.free(unsafe.Pointer(container))
 Error:
 	return nil, err
 }

@@ -39,7 +39,6 @@ func (listener *DTLS_SERVER_CONTEXT) Close() {
 	<-ch
 	C.gnutls_dh_params_deinit(listener.dhParam)
 	C.free(unsafe.Pointer(listener.cookieKey))
-	C.free(unsafe.Pointer(listener))
 }
 
 /*

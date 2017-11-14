@@ -18,13 +18,15 @@ func export_push_func_callback(ptr unsafe.Pointer, data unsafe.Pointer, size C.s
 	go_data := make([]byte, size)
 	C.memcpy(unsafe.Pointer(&go_data[0]), data, size)
 
-	s := (*privDataSt)(ptr)
+	k := uintptr(ptr)
+	s := getPrivData(k)
 	return C.ssize_t(push_func_callback(s, go_data))
 }
 
 //export export_pull_func_callback
 func export_pull_func_callback(ptr unsafe.Pointer, data unsafe.Pointer, size C.size_t) C.ssize_t {
-	s := (*privDataSt)(ptr)
+	k := uintptr(ptr)
+	s := getPrivData(k)
 	go_data, err := pull_func_callback(s, int(size))
 	if err != nil {
 		C.gnutls_transport_set_errno(s.session, C.EAGAIN)
@@ -37,6 +39,7 @@ func export_pull_func_callback(ptr unsafe.Pointer, data unsafe.Pointer, size C.s
 
 //export export_pull_timeout_func_callback
 func export_pull_timeout_func_callback(ptr unsafe.Pointer, ms C.uint) C.int {
-	s := (*privDataSt)(ptr)
+	k := uintptr(ptr)
+	s := getPrivData(k)
 	return C.int(pull_timeout_func_callback(s, uint(ms)))
 }
