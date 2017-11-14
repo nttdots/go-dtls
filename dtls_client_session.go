@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"time"
 	"unsafe"
 	log "github.com/sirupsen/logrus"
@@ -24,6 +25,7 @@ import (
 type DTLS_CLIENT_SESSION struct {
 	session C.gnutls_session_t // reference type
 	conn    *net.UDPConn
+	file	*os.File
 }
 
 func (d *DTLS_CLIENT_SESSION) checkServerCn(cn string) (err error) {
@@ -49,11 +51,11 @@ func (d *DTLS_CLIENT_SESSION) setTimeout(retrans, total uint) {
 func (d *DTLS_CLIENT_SESSION) connect() (err error) {
 	var ret C.int
 
-	file, err := d.conn.File()
+	d.file, err = d.conn.File()
 	if err != nil {
 		return
 	}
-	fd := int(file.Fd())
+	fd := int(d.file.Fd())
 
 	C.gnutls_transport_set_int2(d.session, C.int(fd), C.int(fd))
 	C.gnutls_dtls_set_mtu(d.session, DTLS_PACKET_MTU)
@@ -122,16 +124,22 @@ func (d *DTLS_CLIENT_SESSION) Write(b []byte) (n int, err error) {
 /*
  * Close DTLS sessions on session terminations.
  */
-func (d *DTLS_CLIENT_SESSION) Close() (err error) {
+func (d *DTLS_CLIENT_SESSION) Close() error {
 	log.WithFields(log.Fields{
 		"instance": fmt.Sprintf("%p", d),
 	}).Infof("close DTLS_CLIENT_SESSION")
 
 	C.gnutls_bye(d.session, C.GNUTLS_SHUT_WR)
 	C.gnutls_deinit(d.session)
-	err = d.conn.Close()
+	err := d.conn.Close()
 	if err != nil {
-		log.WithError(err).Error("DTLS connection close error.")
+		log.WithError(err).Error("DTLS original connection close error.")
+	}
+	if d.file != nil {
+		err := d.file.Close()
+		if err != nil {
+			log.WithError(err).Error("DTLS duped connection close error.")
+		}
 	}
 
 	return nil
