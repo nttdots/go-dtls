@@ -169,7 +169,7 @@ func CloseAll() {
  */
 func (d *DTLSCTX) initClientSession(conn *net.UDPConn, serverHostName, clientHostName string) (clientSession *DTLS_CLIENT_SESSION, err error) {
 	var ret C.int
-	priorities := C.CString("NORMAL:-VERS-TLS-ALL:+VERS-DTLS1.2")
+	priorities := C.CString("NORMAL:-VERS-ALL:+VERS-DTLS1.2")
 	defer C.free(unsafe.Pointer(priorities))
 	clientSession = &DTLS_CLIENT_SESSION{}
 	clientSession.conn = conn
